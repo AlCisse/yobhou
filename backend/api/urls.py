@@ -7,6 +7,9 @@ from . import views
 from apps.users.views import LoginView as CustomLoginView
 
 urlpatterns = [
+    # Health check (no auth required)
+    path('health/', views.health_check, name='health-check'),
+    
     # Auth endpoints
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', CustomLoginView.as_view(), name='login'),
