@@ -8,6 +8,8 @@ import 'core/network/api_client.dart';
 import 'features/auth/data/models/user_model.dart';
 import 'features/auth/presentation/screens/login_screen.dart';
 import 'features/auth/presentation/screens/register_screen.dart';
+import 'features/auth/presentation/screens/invoice_upload_screen.dart';
+import 'features/auth/presentation/screens/register_confirm_screen.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/meter/presentation/screens/capture_meter_screen.dart';
 import 'features/payment/presentation/screens/payment_screen.dart';
@@ -96,6 +98,22 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/register',
         name: 'register',
         builder: (context, state) => const RegisterScreen(),
+      ),
+      GoRoute(
+        path: '/upload-invoice',
+        name: 'upload-invoice',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          return InvoiceUploadScreen(registrationData: data ?? {});
+        },
+      ),
+      GoRoute(
+        path: '/register-confirm',
+        name: 'register-confirm',
+        builder: (context, state) {
+          final data = state.extra as Map<String, dynamic>?;
+          return RegisterConfirmScreen(userData: data ?? {});
+        },
       ),
       GoRoute(
         path: '/dashboard',

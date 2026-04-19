@@ -8,8 +8,8 @@ gunicorn==21.2.0
 
 # OCR and Image Processing
 paddleocr==2.7.0
-paddlepaddle==2.6.0
-opencv-python==4.8.1.78
+paddlepaddle==2.6.2
+opencv-python==4.6.0.66
 numpy==1.24.3
 
 # File Processing
@@ -39,3 +39,6 @@ factory-boy==3.2.1
 # Linting and Formatting
 black==24.4.0
 pylint==3.1.0
+
+# Geometry (required by PaddleOCR)
+shapely==2.0.1

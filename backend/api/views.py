@@ -10,8 +10,9 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from ocr_service.paddle_ocr_wrapper import ocr_service
 import os
 import uuid
@@ -37,6 +38,78 @@ def validate_file_type(file, allowed_mime_types, allowed_extensions):
             return False, f'Invalid MIME type: {file.content_type}'
     
     return True, None
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+def complete_registration(request):
+    """
+    Complete user registration with EDG invoice data.
+    POST /api/complete-registration/
+
+    Expects:
+    - phone_number, date_of_birth (from step 1)
+    - nom_titulaire, quartier, numero_compteur, conso_actuelle, etc. (from OCR)
+
+    Returns JWT tokens + user data
+    """
+    data = request.data
+
+    # Validate required fields
+    required_fields = ['phone_number', 'date_of_birth', 'numero_compteur', 'quartier']
+    for field in required_fields:
+        if field not in data:
+            return Response({'error': f'Champ requis: {field}'}, status=400)
+
+    try:
+        # Find user by phone (created in step 1)
+        user = User.objects.get(phone_number=data['phone_number'])
+
+        # Update user with EDG invoice data
+        user.location_quartier = data.get('quartier', '')
+        user.location_prefecture = data.get('quartier', '')  # Same for now
+        user.save()
+
+        # Create meter reading from invoice data
+        conso_actuelle = float(data.get('conso_actuelle', 0))
+        MeterReading.objects.create(
+            user=user,
+            meter_number=data.get('numero_compteur', ''),
+            previous_index=0,  # First registration
+            current_index=conso_actuelle,
+            consumption=conso_actuelle,
+            ocr_data={
+                'nom_titulaire': data.get('nom_titulaire', ''),
+                'quartier': data.get('quartier', ''),
+                'tranche_conso': data.get('tranche_conso', ''),
+                'tarification': data.get('tarification', ''),
+                'date_facture': data.get('date_facture', ''),
+                'montant': data.get('montant', ''),
+            },
+            is_validated=True
+        )
+
+        # Generate JWT tokens
+        token_serializer = TokenObtainPairSerializer(context={'request': request})
+        token = token_serializer.to_representation({'user': user})
+
+        return Response({
+            'success': True,
+            'message': 'Registration completed successfully',
+            'access': token['access'],
+            'refresh': token['refresh'],
+            'user': {
+                'id': user.id,
+                'username': user.username,
+                'phone_number': user.phone_number,
+                'quartier': user.location_quartier,
+            }
+        }, status=200)
+
+    except User.DoesNotExist:
+        return Response({'error': 'Utilisateur non trouvé. Veuillez vous inscrire d\'abord.'}, status=404)
+    except Exception as e:
+        return Response({'error': str(e)}, status=500)
 
 
 @api_view(['POST'])

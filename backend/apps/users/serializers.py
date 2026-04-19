@@ -20,16 +20,17 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
-    """Serializer for user registration"""
+    """Serializer for user registration (step 1 of 2)"""
     password = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
-    password_confirm = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
-    
+    password_confirm = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'}, required=False)
+
     class Meta:
         model = User
         fields = [
             'username', 'phone_number', 'password', 'password_confirm',
             'date_of_birth', 'email'
         ]
+        required = ['username', 'phone_number', 'password', 'date_of_birth']
     
     def validate_phone_number(self, value):
         """Validate Guinea phone number format (+224XXXXXXXX)"""
@@ -68,20 +69,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
     
     def validate(self, data):
-        """Check if passwords match and validate age"""
-        if data['password'] != data['password_confirm']:
+        """Check if passwords match (if provided) and validate age"""
+        if data.get('password_confirm') and data['password'] != data['password_confirm']:
             raise serializers.ValidationError({'password_confirm': 'Passwords do not match'})
-        
+
         # Check age (must be at least 18)
         if data.get('date_of_birth'):
-            from datetime import date, timezone
+            from datetime import date
             today = date.today()
             age = today.year - data['date_of_birth'].year - (
                 (today.month, today.day) < (data['date_of_birth'].month, data['date_of_birth'].day)
             )
             if age < 18:
                 raise serializers.ValidationError({'date_of_birth': 'You must be at least 18 years old'})
-        
+
         return data
     
     def create(self, validated_data):

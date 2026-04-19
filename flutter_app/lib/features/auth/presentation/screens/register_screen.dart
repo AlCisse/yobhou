@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -12,17 +15,19 @@ class RegisterScreen extends ConsumerStatefulWidget {
 
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   DateTime? _dateOfBirth;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _isLoading = false;
+
+  // Données utilisateur temporaires
+  String? _userId;
 
   @override
   void dispose() {
-    _usernameController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -44,13 +49,56 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) return;
-
-    // TODO: Call register use case
-    if (mounted) {
+    if (_dateOfBirth == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Compte créé avec succès ! Connectez-vous maintenant.')),
+        const SnackBar(content: Text('Veuillez sélectionner votre date de naissance')),
       );
-      context.go('/login');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Étape 1 : Créer le compte avec téléphone, date naissance, password
+      final response = await http.post(
+        Uri.parse('${const String.fromEnvironment('API_URL', defaultValue: 'http://10.0.2.2:8000/api')}/register/'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'phone_number': '+224${_phoneController.text}',
+          'date_of_birth': DateFormat('yyyy-MM-dd').format(_dateOfBirth!),
+          'password': _passwordController.text,
+          'username': 'user_${_phoneController.text}',
+        }),
+      );
+
+      if (response.statusCode == 201) {
+        final data = jsonDecode(response.body);
+        setState(() => _userId = data['user_id']);
+
+        // Naviguer vers l'écran 2 : upload facture EDG
+        if (mounted) {
+          context.push('/upload-invoice', extra: {
+            'userId': _userId,
+            'phone': '+224${_phoneController.text}',
+            'dateOfBirth': DateFormat('yyyy-MM-dd').format(_dateOfBirth!),
+          });
+        }
+      } else {
+        final error = jsonDecode(response.body);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(error['message'] ?? error.toString())),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur de connexion: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -66,22 +114,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Username
-                TextFormField(
-                  controller: _usernameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Nom d\'utilisateur',
-                    prefixIcon: Icon(Icons.person),
-                    border: OutlineInputBorder(),
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty || value.length < 3) {
-                      return 'Minimum 3 caractères';
-                    }
-                    return null;
-                  },
+                // Header
+                const Text(
+                  'Bienvenue chez Yobhou',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 8),
+                const Text(
+                  'Étape 1/2 : Informations personnelles',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 32),
 
                 // Phone (+224)
                 TextFormField(
@@ -92,6 +137,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     prefixIcon: Icon(Icons.phone),
                     prefixText: '+224 ',
                     border: OutlineInputBorder(),
+                    helperText: 'Ex: 620 00 00 00',
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
@@ -118,6 +164,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       _dateOfBirth == null
                           ? 'Sélectionner'
                           : DateFormat('dd/MM/yyyy').format(_dateOfBirth!),
+                      style: TextStyle(
+                        color: _dateOfBirth == null ? Colors.grey : Colors.black,
+                      ),
                     ),
                   ),
                 ),
@@ -135,6 +184,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                     ),
                     border: const OutlineInputBorder(),
+                    helperText: 'Minimum 8 caractères',
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty || value.length < 8) {
@@ -165,14 +215,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
                 // Register button
                 SizedBox(
                   height: 50,
                   child: ElevatedButton(
-                    onPressed: _handleRegister,
-                    child: const Text('S\'inscrire', style: TextStyle(fontSize: 16)),
+                    onPressed: _isLoading ? null : _handleRegister,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          )
+                        : const Text('Suivant', style: TextStyle(fontSize: 16)),
                   ),
                 ),
                 const SizedBox(height: 16),

@@ -12,6 +12,7 @@ urlpatterns = [
     
     # Auth endpoints
     path('register/', RegisterView.as_view(), name='register'),
+    path('complete-registration/', views.complete_registration, name='complete-registration'),
     path('login/', CustomLoginView.as_view(), name='login'),
     path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('logout/', LogoutView.as_view(), name='logout'),

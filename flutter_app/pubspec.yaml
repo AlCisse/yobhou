@@ -18,8 +18,12 @@ dependencies:
   go_router: ^12.1.1
 
   # Network
+  http: ^1.1.0
   dio: ^5.4.0
   retrofit: ^4.0.3
+
+  # Storage
+  shared_preferences: ^2.2.2
 
   # Local Storage (Offline-first)
   hive: ^2.2.3

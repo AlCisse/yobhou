@@ -14,7 +14,7 @@ class AppConstants {
   static const Color warningColor = Color(0xFFFFB300);
 
   // API Configuration
-  static const String apiBaseUrl = 'https://api.yobhou.gn/api';
+  static const String apiBaseUrl = 'http://10.0.2.2:8000/api'; // Android emulator
   static const Duration connectionTimeout = Duration(seconds: 30);
   static const Duration receiveTimeout = Duration(seconds: 30);
 
