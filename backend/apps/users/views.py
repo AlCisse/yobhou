@@ -33,7 +33,7 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 
-class LoginView(CustomTokenObtainPairSerializer, TokenObtainPairView):
+class LoginView(TokenObtainPairView):
     """
     API endpoint for user login (JWT tokens).
     POST /api/login/
@@ -45,7 +45,7 @@ class LoginView(CustomTokenObtainPairSerializer, TokenObtainPairView):
         "user": { ... user data ... }
     }
     """
-    pass
+    serializer_class = CustomTokenObtainPairSerializer
 
 
 class UserProfileView(generics.RetrieveUpdateAPIView):

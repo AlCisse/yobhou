@@ -68,13 +68,13 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
     
     def validate(self, data):
-        """Check if passwords match"""
+        """Check if passwords match and validate age"""
         if data['password'] != data['password_confirm']:
             raise serializers.ValidationError({'password_confirm': 'Passwords do not match'})
         
         # Check age (must be at least 18)
         if data.get('date_of_birth'):
-            from datetime import date
+            from datetime import date, timezone
             today = date.today()
             age = today.year - data['date_of_birth'].year - (
                 (today.month, today.day) < (data['date_of_birth'].month, data['date_of_birth'].day)
