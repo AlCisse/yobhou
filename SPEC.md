@@ -3,6 +3,12 @@
 ## 📘 Nom du Projet
 **Yobhou – Paiement Factures Électricité en Guinée**
 
+## 🏦 Classification Fintech
+- **Niveau de sécurité** : Bancaire (AES-256, TLS 1.3, HSM)
+- **Conformité** : BCEAO, RGPD-like, Audit 10 ans
+- **Type** : Établissement de Monnaie Électronique (EME)
+- **Plafonds** : 1M GNF/jour, 5M GNF/mois (KYC Niveau 1)
+
 ## 🌍 Contexte Pays
 Ce projet cible spécifiquement les usagers des fournisseurs d’énergie en **Guinée**, avec des adaptations légales locales et compatibilités avec les infrastructures mobiles locales.
 

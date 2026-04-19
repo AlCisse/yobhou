@@ -52,6 +52,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'core.logging_filters.AuditMiddleware',  # Audit trail compliance
 ]
 
 ROOT_URLCONF = 'core.urls'
@@ -140,3 +141,78 @@ REST_FRAMEWORK = {
 
 # Custom User Model
 AUTH_USER_MODEL = 'users.User'
+
+# Audit Logging Configuration (10-year compliance)
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'audit': {
+            'format': '[%(levelname)s] %(asctime)s user_id=%(user_id)s action=%(action)s "%(message)s"',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        },
+        'verbose': {
+            'format': '[%(levelname)s] %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+    },
+    'filters': {
+        'require_debug_false': {
+            '()': 'django.utils.log.RequireDebugFalse',
+        },
+        'user_context': {
+            '()': 'core.logging_filters.UserContextFilter',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+        'audit_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': '/app/logs/audit.log',
+            'maxBytes': 104857600,  # 100MB
+            'backupCount': 100,
+            'formatter': 'audit',
+            'filters': ['user_context'],
+        },
+        'security_file': {
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': '/app/logs/security.log',
+            'maxBytes': 104857600,
+            'backupCount': 100,
+            'formatter': 'audit',
+        },
+        'elasticsearch': {
+            'class': 'elasticsearch_dsl.connections.ElasticsearchHandler',
+            'level': 'INFO',
+            'filters': ['require_debug_false', 'user_context'],
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'audit_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.security': {
+            'handlers': ['security_file', 'elasticsearch'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'yobhou.audit': {
+            'handlers': ['audit_file', 'elasticsearch'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'yobhou.transactions': {
+            'handlers': ['audit_file', 'elasticsearch'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+    'root': {
+        'handlers': ['console', 'audit_file'],
+        'level': 'INFO',
+    },
+}
