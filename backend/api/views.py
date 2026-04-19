@@ -3,7 +3,7 @@ Yobhou Fintech - OCR and Meter Reading API Views
 All endpoints are stateless (JWT authentication), no session usage.
 """
 
-from django.http import JsonResponse
+from rest_framework.response import Response
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
@@ -53,16 +53,16 @@ def upload_invoice(request):
     - File size limit (10MB)
     """
     if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+        return Response({'error': 'Only POST method allowed'}, status=405)
     
     if 'invoice' not in request.FILES:
-        return JsonResponse({'error': 'No invoice file provided'}, status=400)
+        return Response({'error': 'No invoice file provided'}, status=400)
     
     invoice_file = request.FILES['invoice']
     
     # Validate file size (max 10MB)
     if invoice_file.size > 10 * 1024 * 1024:
-        return JsonResponse({'error': 'File too large. Maximum 10MB allowed'}, status=400)
+        return Response({'error': 'File too large. Maximum 10MB allowed'}, status=400)
     
     # Validate file type
     allowed_mime_types = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf']
@@ -70,7 +70,7 @@ def upload_invoice(request):
     
     is_valid, error_message = validate_file_type(invoice_file, allowed_mime_types, allowed_extensions)
     if not is_valid:
-        return JsonResponse({'error': error_message}, status=400)
+        return Response({'error': error_message}, status=400)
     
     # Save uploaded file temporarily
     storage = FileSystemStorage()
@@ -82,7 +82,7 @@ def upload_invoice(request):
         # Process with OCR (skip for PDF in MVP)
         file_ext = os.path.splitext(invoice_file.name)[1].lower()
         if file_ext == '.pdf':
-            return JsonResponse({
+            return Response({
                 'message': 'PDF uploaded successfully. OCR will be processed separately.',
                 'file_path': file_path,
                 'validation_required': True
@@ -91,14 +91,14 @@ def upload_invoice(request):
         result = ocr_service.extract_text(full_path)
         
         if not result['success']:
-            return JsonResponse({
+            return Response({
                 'error': 'OCR failed to extract text from invoice',
                 'details': result.get('raw_text', [])
             }, status=400)
         
         # Validate OCR confidence
         if not ocr_service.validate_ocr_result(result):
-            return JsonResponse({
+            return Response({
                 'message': 'OCR confidence too low. Please retake photo.',
                 'ocr_data': {
                     'extracted_text': result['raw_text'],
@@ -110,7 +110,7 @@ def upload_invoice(request):
                 'validation_required': False
             })
         
-        return JsonResponse({
+        return Response({
             'message': 'Invoice processed successfully',
             'ocr_data': {
                 'extracted_text': result['raw_text'],
@@ -143,16 +143,16 @@ def capture_meter(request):
     - Rate limiting (1 per day per user - implemented in middleware)
     """
     if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+        return Response({'error': 'Only POST method allowed'}, status=405)
     
     if 'meter_photo' not in request.FILES:
-        return JsonResponse({'error': 'No meter photo provided'}, status=400)
+        return Response({'error': 'No meter photo provided'}, status=400)
     
     meter_photo = request.FILES['meter_photo']
     
     # Validate file size (max 10MB)
     if meter_photo.size > 10 * 1024 * 1024:
-        return JsonResponse({'error': 'File too large. Maximum 10MB allowed'}, status=400)
+        return Response({'error': 'File too large. Maximum 10MB allowed'}, status=400)
     
     # Validate file type
     allowed_mime_types = ['image/jpeg', 'image/jpg', 'image/png']
@@ -160,7 +160,7 @@ def capture_meter(request):
     
     is_valid, error_message = validate_file_type(meter_photo, allowed_mime_types, allowed_extensions)
     if not is_valid:
-        return JsonResponse({'error': error_message}, status=400)
+        return Response({'error': error_message}, status=400)
     
     # Save uploaded file temporarily
     storage = FileSystemStorage()
@@ -173,14 +173,14 @@ def capture_meter(request):
         result = ocr_service.extract_text(full_path)
         
         if not result['success']:
-            return JsonResponse({
+            return Response({
                 'error': 'OCR failed to extract meter data',
                 'details': result.get('raw_text', [])
             }, status=400)
         
         # Validate OCR confidence
         if not ocr_service.validate_ocr_result(result):
-            return JsonResponse({
+            return Response({
                 'message': 'OCR confidence too low. Please retake photo.',
                 'ocr_data': {
                     'extracted_text': result['raw_text'],
@@ -192,7 +192,7 @@ def capture_meter(request):
                 'validation_required': False
             })
         
-        return JsonResponse({
+        return Response({
             'message': 'Meter photo processed successfully',
             'ocr_data': {
                 'extracted_text': result['raw_text'],
@@ -225,7 +225,7 @@ def validate_reading(request):
     - Audit logging
     """
     if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST method allowed'}, status=405)
+        return Response({'error': 'Only POST method allowed'}, status=405)
     
     data = request.data  # Use request.data for DRF (parses JSON)
     
@@ -237,7 +237,7 @@ def validate_reading(request):
     
     # Validate required fields
     if not all([meter_number, current_index]):
-        return JsonResponse({
+        return Response({
             'error': 'Missing required fields: meter_number and current_index'
         }, status=400)
     
@@ -247,11 +247,11 @@ def validate_reading(request):
         meter_number_confidence = float(meter_number_confidence)
         index_confidence = float(index_confidence)
     except ValueError:
-        return JsonResponse({'error': 'Invalid numeric values provided'}, status=400)
+        return Response({'error': 'Invalid numeric values provided'}, status=400)
     
     # Validate indices
     if current_index <= previous_index:
-        return JsonResponse({
+        return Response({
             'error': 'Current index must be greater than previous index'
         }, status=400)
     
@@ -275,7 +275,7 @@ def validate_reading(request):
         is_validated=True
     )
     
-    return JsonResponse({
+    return Response({
         'message': 'Reading validated successfully',
         'reading': {
             'id': meter_reading.id,
