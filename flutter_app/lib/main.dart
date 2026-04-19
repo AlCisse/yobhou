@@ -61,11 +61,10 @@ class YobhouApp extends ConsumerWidget {
 
 // Router configuration
 final routerProvider = Provider<GoRouter>((ref) {
-  final authState = ref.watch(authStateProvider);
+  final authState = ref.watch(authStateNotifierProvider);
 
   return GoRouter(
     initialLocation: '/onboarding',
-    refreshListenable: ref.watch(authStateNotifierProvider),
     redirect: (context, state) {
       final isLoggedIn = authState.isLoggedIn;
       final isLoggingIn = state.matchedLocation == '/login' ||

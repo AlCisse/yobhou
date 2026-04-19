@@ -139,7 +139,7 @@ class PaymentScreen extends StatelessWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Vous serez redirigé vers l\'application $method pour compléter le paiement.'),
+            Text('Vous serez redirigé vers l\'application $method pour compléter le paiement.'),
             const SizedBox(height: 16),
             const Text('Montant: 125 000 GNF', style: TextStyle(fontWeight: FontWeight.bold)),
           ],

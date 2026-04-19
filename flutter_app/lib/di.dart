@@ -31,13 +31,13 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 // Meter Repository
-final meterRepositoryProvider = Provider<MeterRepository>((ref) {
+final meterRepositoryProvider = Provider((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return MeterRepositoryImpl(apiClient: apiClient);
 });
 
 // Payment Repository
-final paymentRepositoryProvider = Provider<PaymentRepository>((ref) {
+final paymentRepositoryProvider = Provider((ref) {
   final apiClient = ref.watch(apiClientProvider);
   return PaymentRepositoryImpl(apiClient: apiClient);
 });

@@ -84,7 +84,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserModel?> getUser() async {
+  Future<Map<String, dynamic>?> getUser() async {
     // Implement user retrieval from local storage
     return null;
   }

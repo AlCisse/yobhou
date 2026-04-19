@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'dart:io';
 
 class CaptureMeterScreen extends StatefulWidget {
   const CaptureMeterScreen({super.key});
@@ -114,7 +115,7 @@ class _CaptureMeterScreenState extends State<CaptureMeterScreen> {
             else
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
-                child: Image.file(_photo!, height: 300, fit: BoxFit.cover),
+                child: Image.file(File(_photo!.path), height: 300, fit: BoxFit.cover),
               ),
             const SizedBox(height: 24),
 

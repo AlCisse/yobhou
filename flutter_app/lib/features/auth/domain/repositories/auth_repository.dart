@@ -1,4 +1,4 @@
-import '../../entities/user.dart';
+import '../../data/models/user_model.dart';
 
 abstract class AuthRepository {
   Future<void> login({
@@ -19,7 +19,7 @@ abstract class AuthRepository {
 
   Future<String?> getToken();
 
-  Future<UserModel?> getUser();
+  Future<Map<String, dynamic>?> getUser();
 
   Future<void> refreshToken();
 }

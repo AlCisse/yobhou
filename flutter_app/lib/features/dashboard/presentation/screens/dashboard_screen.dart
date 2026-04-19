@@ -111,7 +111,7 @@ class DashboardScreen extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: 8),
                   child: ListTile(
                     leading: const CircleAvatar(
-                      child: Icon(Icons.electricity),
+                      child: Icon(Icons.bolt),
                     ),
                     title: Text('Facture #${100 + index}'),
                     subtitle: const Text('Payé'),
