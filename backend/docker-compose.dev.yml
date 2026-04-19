@@ -1,3 +1,5 @@
+# 🐳 Docker Compose - Yobhou Backend (Development)
+
 version: '3.8'
 
 services:
@@ -5,31 +7,61 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    image: alcisse/yobhou-backend:dev
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
     ports:
       - "8000:8000"
     volumes:
-      - ./media:/app/media
+      - .:/app
+      - media_volume:/app/media
     environment:
       - DJANGO_SETTINGS_MODULE=core.settings
-      - DEBUG=True
-      - DATABASE_URL=postgres://yobhou_user:yobhou_password@db:5432/yobhou_db
+      - DJANGO_DEBUG=True
+      - POSTGRES_USER=yobhou_user
+      - POSTGRES_PASSWORD=yobhou_password
+      - POSTGRES_DB=yobhou_db
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
     depends_on:
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - yobhou-network
     restart: unless-stopped
 
   db:
     image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     environment:
       - POSTGRES_USER=yobhou_user
       - POSTGRES_PASSWORD=yobhou_password
       - POSTGRES_DB=yobhou_db
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yobhou_user -d yobhou_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yobhou-network
     restart: unless-stopped
 
   redis:
     image: redis:7-alpine
+    networks:
+      - yobhou-network
     restart: unless-stopped
+
+networks:
+  yobhou-network:
+    driver: bridge
 
 volumes:
   postgres_data:
+  media_volume:
