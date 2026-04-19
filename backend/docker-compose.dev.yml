@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./media:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DEBUG=True
+      - DATABASE_URL=postgres://yobhou_user:yobhou_password@db:5432/yobhou_db
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=yobhou_user
+      - POSTGRES_PASSWORD=yobhou_password
+      - POSTGRES_DB=yobhou_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
