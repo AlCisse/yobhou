@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-yobhou_elk_pass}
+      - xpack.license.self_generated.type=basic
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - yobhou-monitoring
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.0
+    volumes:
+      - ./logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ./logstash/config:/usr/share/logstash/config:ro
+    networks:
+      - yobhou-monitoring
+      - yobhou-backend
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD:-yobhou_elk_pass}
+      - XPACK_SECURITY_ENABLED=true
+    ports:
+      - "5601:5601"
+    networks:
+      - yobhou-monitoring
+    depends_on:
+      - elasticsearch
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.0
+    user: root
+    volumes:
+      - ./filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - yobhou-monitoring
+    depends_on:
+      - logstash
+    deploy:
+      mode: global
+
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=2y'
+      - '--web.enable-lifecycle'
+    networks:
+      - yobhou-monitoring
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-yobhou_grafana}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      - "3000:3000"
+    networks:
+      - yobhou-monitoring
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+
+  archive_worker:
+    image: python:3.11-slim
+    command: python /app/archive_logs.py
+    volumes:
+      - ./scripts/archive_logs.py:/app/archive_logs.py:ro
+      - archive_cache:/app/cache
+    environment:
+      - S3_BUCKET=${ARCHIVE_S3_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION:-eu-central-1}
+      - GLACIER_CLASS=DEEP_ARCHIVE
+      - RETENTION_YEARS=10
+    networks:
+      - yobhou-monitoring
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+networks:
+  yobhou-monitoring:
+    driver: overlay
+    attachable: true
+
+volumes:
+  elasticsearch_data:
+  prometheus_data:
+  grafana_data:
+  archive_cache:
