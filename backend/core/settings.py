@@ -189,9 +189,9 @@ LOGGING = {
             'formatter': 'audit',
         },
         'elasticsearch': {
-            'class': 'elasticsearch_dsl.connections.ElasticsearchHandler',
             'level': 'INFO',
             'filters': ['require_debug_false', 'user_context'],
+            'class': 'logging.StreamHandler',  # Placeholder - ELK handled by Filebeat
         },
     },
     'loggers': {

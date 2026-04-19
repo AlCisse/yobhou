@@ -3,6 +3,9 @@ Django==4.2.10
 djangorestframework==3.14.0
 djangorestframework-simplejwt==5.3.1
 
+# Production Server
+gunicorn==21.2.0
+
 # OCR and Image Processing
 paddleocr==2.7.0
 paddlepaddle==2.6.0
