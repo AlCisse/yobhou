@@ -1,0 +1,142 @@
+version: '3.8'
+
+services:
+  web:
+    image: alcisse/yobhou-backend:latest
+    deploy:
+      replicas: 2
+      resources:
+        limits:
+          cpus: '1'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    networks:
+      - yobhou-frontend
+      - yobhou-backend
+    environment:
+      - DJANGO_SETTINGS_MODULE=core.settings
+      - DEBUG=False
+    secrets:
+      - django_secret_key
+      - db_password
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/media
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '1'
+          memory: 512M
+    networks:
+      - yobhou-backend
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_USER=yobhou_user
+    secrets:
+      - db_password
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+
+  redis:
+    image: redis:7-alpine
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    networks:
+      - yobhou-backend
+    read_only: true
+    tmpfs:
+      - /data
+
+  ocr_worker:
+    image: alcisse/yobhou-ocr:latest
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '1'
+          memory: 1G
+    networks:
+      - yobhou-backend
+    volumes:
+      - ocr_cache:/root/.paddleocr
+    read_only: true
+    tmpfs:
+      - /tmp
+
+  traefik:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.swarmMode=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - yobhou-frontend
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    read_only: true
+    tmpfs:
+      - /tmp
+
+networks:
+  yobhou-frontend:
+    driver: overlay
+    attachable: true
+  yobhou-backend:
+    driver: overlay
+    internal: true
+    attachable: true
+
+volumes:
+  postgres_data:
+  ocr_cache:
+
+secrets:
+  django_secret_key:
+    external: true
+  db_password:
+    external: true

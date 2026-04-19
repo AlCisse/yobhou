@@ -1,0 +1,91 @@
+openapi: 3.0.3
+info:
+  title: Yobhou API
+  description: API pour le paiement de factures d'électricité en Guinée
+  version: 1.0.0
+servers:
+  - url: https://api.yobhou.gn/v1
+    description: Production
+  - url: http://localhost:8000/api
+    description: Development
+
+paths:
+  /upload-invoice/:
+    post:
+      summary: Upload facture EDG
+      description: Upload une facture EDG pour extraction OCR
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                invoice:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Facture traitée avec succès
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  ocr_data:
+                    type: object
+        '400':
+          description: Erreur de traitement
+
+  /capture-meter/:
+    post:
+      summary: Capture photo compteur
+      description: Capture et traite une photo de compteur électrique
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                meter_photo:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Photo traitée avec succès
+
+  /validate-reading/:
+    post:
+      summary: Valider relevé
+      description: Valide les données OCR extraites
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              properties:
+                meter_number:
+                  type: string
+                current_index:
+                  type: number
+                meter_number_confidence:
+                  type: number
+                index_confidence:
+                  type: number
+      responses:
+        '200':
+          description: Relevé validé
+
+components:
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+security:
+  - jwtAuth: []
