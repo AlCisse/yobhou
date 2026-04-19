@@ -1,4 +1,4 @@
-"""
+"""  
 Yobhou Fintech - OCR and Meter Reading API Views
 All endpoints are stateless (JWT authentication), no session usage.
 """
@@ -7,6 +7,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.files.storage import FileSystemStorage
 from django.conf import settings
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -38,7 +39,6 @@ def validate_file_type(file, allowed_mime_types, allowed_extensions):
     return True, None
 
 
-@csrf_exempt
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -128,7 +128,6 @@ def upload_invoice(request):
             os.remove(full_path)
 
 
-@csrf_exempt
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -211,7 +210,6 @@ def capture_meter(request):
             os.remove(full_path)
 
 
-@csrf_exempt
 @api_view(['POST'])
 @authentication_classes([JWTAuthentication])
 @permission_classes([IsAuthenticated])
@@ -308,11 +306,9 @@ def health_check(request):
         "version": "1.0.0"
     }
     """
-    from datetime import datetime
-    
     return JsonResponse({
         'status': 'ok',
-        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'timestamp': timezone.now().isoformat(),
         'version': '1.0.0',
         'service': 'yobhou-backend'
     })
