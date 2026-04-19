@@ -13,9 +13,11 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import List, Dict, Optional
 from django.db.models import Sum
-from apps.transactions.models import Transaction
 from apps.users.models import User
 import logging
+
+# Lazy import to avoid circular dependency
+# Transaction model is imported at runtime inside check functions
 
 logger = logging.getLogger('yobhou.audit')
 
@@ -54,8 +56,10 @@ class AMLChecker:
     
     def _check_structuring(self):
         """Detect structuring (smurfing): multiple transactions just below threshold"""
+        from apps.transactions.models import Transaction  # Lazy import
+
         one_hour_ago = datetime.utcnow() - timedelta(hours=1)
-        
+
         recent_transactions = Transaction.objects.filter(
             user=self.user,
             created_at__gte=one_hour_ago,
@@ -79,8 +83,10 @@ class AMLChecker:
     
     def _check_rapid_succession(self):
         """Detect rapid succession of transactions"""
+        from apps.transactions.models import Transaction  # Lazy import
+
         window_start = datetime.utcnow() - RAPID_SUCCESSSION_WINDOW
-        
+
         recent_count = Transaction.objects.filter(
             user=self.user,
             created_at__gte=window_start,
@@ -98,8 +104,10 @@ class AMLChecker:
     
     def _check_daily_limit(self):
         """Check if user exceeds daily limit"""
+        from apps.transactions.models import Transaction  # Lazy import
+
         today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-        
+
         daily_total = Transaction.objects.filter(
             user=self.user,
             created_at__gte=today_start,
@@ -117,8 +125,10 @@ class AMLChecker:
     
     def _check_monthly_limit(self):
         """Check if user exceeds monthly limit"""
+        from apps.transactions.models import Transaction  # Lazy import
+
         month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        
+
         monthly_total = Transaction.objects.filter(
             user=self.user,
             created_at__gte=month_start,
@@ -136,8 +146,10 @@ class AMLChecker:
     
     def _check_unusual_patterns(self):
         """Check for unusual transaction patterns"""
+        from apps.transactions.models import Transaction  # Lazy import
+
         amount = self.transaction.amount
-        
+
         # Check for round numbers (potential money laundering)
         if amount >= UNUSUAL_ROUND_THRESHOLD and int(amount) % int(UNUSUAL_ROUND_THRESHOLD) == 0:
             # Count similar round transactions in last 30 days

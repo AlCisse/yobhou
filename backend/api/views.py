@@ -298,7 +298,7 @@ def health_check(request):
     """
     Health check endpoint for monitoring.
     No authentication required.
-    
+
     Returns:
     {
         "status": "ok",
@@ -306,7 +306,8 @@ def health_check(request):
         "version": "1.0.0"
     }
     """
-    return JsonResponse({
+    from rest_framework.response import Response
+    return Response({
         'status': 'ok',
         'timestamp': timezone.now().isoformat(),
         'version': '1.0.0',

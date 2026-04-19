@@ -180,7 +180,7 @@ LOGGING = {
         },
         'audit_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/app/logs/audit.log',
+            'filename': 'logs/audit.log',
             'maxBytes': 104857600,  # 100MB
             'backupCount': 100,
             'formatter': 'audit',
@@ -188,7 +188,7 @@ LOGGING = {
         },
         'security_file': {
             'class': 'logging.handlers.RotatingFileHandler',
-            'filename': '/app/logs/security.log',
+            'filename': 'logs/security.log',
             'maxBytes': 104857600,
             'backupCount': 100,
             'formatter': 'audit',

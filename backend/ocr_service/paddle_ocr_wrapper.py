@@ -10,13 +10,14 @@ from typing import Dict, Any, List, Optional
 from pathlib import Path
 import cv2
 import numpy as np
-from paddleocr import PaddleOCR
 
 
 class PaddleOCRService:
     """Wrapper for PaddleOCR with preprocessing and postprocessing."""
 
     def __init__(self):
+        # Lazy import to avoid errors when paddleocr is not installed
+        from paddleocr import PaddleOCR
         # Initialize PaddleOCR with French language support
         self.ocr = PaddleOCR(
             lang='fr',
