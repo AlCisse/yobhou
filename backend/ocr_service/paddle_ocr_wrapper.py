@@ -26,62 +26,38 @@ class PaddleOCRService:
     def __init__(self):
         # Lazy import to avoid errors when paddleocr is not installed
         from paddleocr import PaddleOCR
-        # Initialize PaddleOCR with French language support
+        # Initialize PaddleOCR with English (faster, works for numbers)
         self.ocr = PaddleOCR(
-            lang='fr',
-            use_angle_cls=True,
+            lang='en',
+            use_angle_cls=False,  # Skip angle classification for speed
             det_db_score_mode='fast',
-            det_db_shrink_ratio=0.5,
+            det_db_thresh=0.3,
+            det_db_box_thresh=0.3,
+            rec_batch_num=64,  # Process in batches
         )
-        
-        # Banking level thresholds
-        self.MIN_CONFIDENCE = 0.99  # 99% precision requirement
-        self.MAX_RETRIES = 3
+
+        # Optimized thresholds for speed
+        self.MIN_CONFIDENCE = 0.85  # Lowered for speed
+        self.MAX_RETRIES = 1  # Single attempt
         self.ALLOWED_CHARS = set('0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz -._/@')
-        
-        # Preprocessing pipeline (banking level)
-        self.preprocessing_steps = [
-            'grayscale',
-            'gaussian_blur',
-            'adaptive_threshold',
-            'denoising',
-            'deskewing',
-            'contrast_enhancement',
-            'histogram_equalization'
-        ]
+
+        # Simplified preprocessing pipeline (speed optimized)
+        self.preprocessing_steps = ['grayscale', 'enhance']
 
     def preprocess_image(self, image_path: str) -> np.ndarray:
         """
-        **BANKING LEVEL PREPROCESSING** for 99%+ precision.
-        Includes: grayscale, thresholding, denoising, deskewing, contrast, histogram equalization.
+        Fast preprocessing for OCR - optimized for speed.
         """
         # Load image
         image = cv2.imread(image_path)
-        
+
         # 1. Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        
-        # 2. Apply Gaussian blur to reduce noise
-        blurred = cv2.GaussianBlur(gray, (3, 3), 0)
-        
-        # 3. Apply adaptive thresholding
-        threshold = cv2.adaptiveThreshold(
-            blurred, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 11, 2
-        )
-        
-        # 4. Denoising (aggressive for banking level)
-        denoised = cv2.fastNlMeansDenoising(threshold, h=15)
-        
-        # 5. Deskew correction
-        deskewed = self._deskew_image(denoised)
-        
-        # 6. Contrast enhancement
-        enhanced = self._enhance_contrast(deskewed)
-        
-        # 7. Histogram equalization for better contrast
-        equalized = cv2.equalizeHist(enhanced)
-        
-        return equalized
+
+        # 2. Simple contrast enhancement
+        enhanced = self._enhance_contrast(gray)
+
+        return enhanced
 
     def _deskew_image(self, image: np.ndarray) -> np.ndarray:
         """Correct skew in image (banking level preprocessing)."""
@@ -134,51 +110,36 @@ class PaddleOCRService:
     def extract_text(self, image_path: str) -> Dict[str, Any]:
         """
         Perform OCR on the image and extract relevant fields.
-        **BANKING LEVEL** - Multiple validation passes with 99% precision.
-        
-        Returns structured data with extracted information and confidence scores.
+        Speed optimized - single pass with fast preprocessing.
         """
-        # Preprocess image (banking level)
+        # Preprocess image (fast)
         processed_image = self.preprocess_image(image_path)
-        
+
         # Save temporarily for PaddleOCR
         temp_path = "/tmp/processed_ocr.jpg"
         cv2.imwrite(temp_path, processed_image)
-        
+
         try:
-            # Perform OCR (3 retry attempts for banking level)
+            # Perform OCR - single pass, no angle classification
+            result = self.ocr.ocr(temp_path, cls=False)
+
             confidences = []
             text_lines = []
-            
-            for attempt in range(self.MAX_RETRIES):
-                try:
-                    result = self.ocr.ocr(temp_path, cls=True)
-                    
-                    if result and len(result) > 0:
-                        for line in result[0]:
-                            text = line[1][0]
-                            confidence = line[1][1]
-                            text_lines.append(text)
-                            confidences.append(confidence)
-                        
-                        # Check if we meet 99% confidence threshold
-                        if confidences:
-                            avg_confidence = sum(confidences) / len(confidences)
-                            if avg_confidence >= self.MIN_CONFIDENCE:
-                                break  # Success at banking level
-                            
-                except Exception as e:
-                    # Retry on error
-                    if attempt == self.MAX_RETRIES - 1:
-                        raise e
-            
+
+            if result and len(result) > 0:
+                for line in result[0]:
+                    text = line[1][0]
+                    confidence = line[1][1]
+                    text_lines.append(text)
+                    confidences.append(confidence)
+
             # Extract specific fields
             meter_number = self.extract_meter_number(text_lines)
             index = self.extract_index(text_lines)
-            
-            # Final validation for banking level
-            validation_passed = self._validate_result(text_lines, meter_number, index)
-            
+
+            # Simple validation
+            validation_passed = bool(meter_number or index)
+
             return {
                 "raw_text": text_lines,
                 "confidence_scores": confidences,
@@ -186,9 +147,8 @@ class PaddleOCRService:
                 "meter_number": meter_number,
                 "index": index,
                 "success": validation_passed,
-                "banking_level": validation_passed,  # 99% confidence achieved
             }
-            
+
         finally:
             # Cleanup temp file
             if os.path.exists(temp_path):
@@ -224,15 +184,16 @@ class PaddleOCRService:
         avg_confidence = sum(confidences) / len(confidences)
         return avg_confidence >= self.MIN_CONFIDENCE
 
-    def validate_ocr_result(self, result: Dict[str, Any], confidence_threshold: float = 0.99) -> bool:
+    def validate_ocr_result(self, result: Dict[str, Any], confidence_threshold: float = 0.85) -> bool:
         """
-        Validate if OCR result meets **banking level** minimum confidence requirements (99%).
+        Validate if OCR result meets minimum confidence requirements.
         Returns True if result is acceptable, False otherwise.
+        Threshold set to 85% for speed-optimized OCR (balanced with accuracy).
         """
         if not result.get("success", False):
             return False
-        
-        # Check banking level confidence (99%)
+
+        # Check average confidence >= threshold (85% for speed-optimized OCR)
         avg_confidence = result.get("avg_confidence", 0)
         return avg_confidence >= confidence_threshold
 
