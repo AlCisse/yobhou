@@ -52,17 +52,21 @@ if not DEBUG:
 # Application definition
 
 INSTALLED_APPS = [
-    'django.contrib.admin',
+    # Core Django apps (must come first for migrations order)
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'rest_framework_simplejwt',
+    # Custom apps (before admin to ensure migrations run first)
     'apps.users',
     'apps.meters',
     'apps.transactions',
+    # Third-party apps
+    'rest_framework',
+    'rest_framework_simplejwt',
+    # Admin must come after custom apps for migration dependencies
+    'django.contrib.admin',
 ]
 
 MIDDLEWARE = [
@@ -95,7 +99,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'core.wsgi'
+WSGI_APPLICATION = 'core.wsgi.application'
 
 
 # Database

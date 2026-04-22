@@ -9,6 +9,19 @@ class User(AbstractUser):
     location_prefecture = models.CharField(max_length=100, null=True, blank=True)
     location_quartier = models.CharField(max_length=100, null=True, blank=True)
     kyc_level = models.IntegerField(default=1)  # KYC compliance level (1, 2, 3)
+    kyc_invoice_verified = models.BooleanField(default=False)
+
+    # EDG KYC fields
+    edg_meter_number = models.CharField(max_length=20, null=True, blank=True)
+    edg_nom = models.CharField(max_length=200, null=True, blank=True)
+    edg_quartier = models.CharField(max_length=100, null=True, blank=True)
+    edg_tranche = models.CharField(max_length=50, null=True, blank=True)
+    edg_tarification = models.CharField(max_length=100, null=True, blank=True)
+    edg_conso_actuelle = models.FloatField(null=True, blank=True)
+    edg_conso_precedente = models.FloatField(null=True, blank=True)
+    edg_montant = models.FloatField(null=True, blank=True)
+    edg_periode = models.CharField(max_length=50, null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

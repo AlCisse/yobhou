@@ -237,10 +237,6 @@ class PaddleOCRService:
         return avg_confidence >= confidence_threshold
 
 
-<<<<<<< HEAD
-# Global instance for reuse
-ocr_service = PaddleOCRService()
-=======
 def get_ocr_service() -> PaddleOCRService:
     """
     Get thread-local OCR instance.
@@ -252,5 +248,5 @@ def get_ocr_service() -> PaddleOCRService:
 
 
 # Backwards compatibility - deprecated, use get_ocr_service() instead
-ocr_service = get_ocr_service()
->>>>>>> 78baa35 (Audit de sécurité complet + corrections critiques)
+# Lazy initialization - do not initialize at import time to avoid startup crashes
+ocr_service = None  # Use get_ocr_service() to get thread-local instance
