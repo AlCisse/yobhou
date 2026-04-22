@@ -4,15 +4,30 @@ import '../../../../core/network/api_client.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../models/user_model.dart';
 
+/// Secure Storage Configuration - Fintech Standards
+/// Uses Android Keystore / iOS Keychain for encrypted storage
+class _SecureStorageConfig {
+  static final _instance = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+    ),
+    iOptions: IOSOptions(
+      accessibility: KeychainAccessibility.first_unlock_this_device,
+    ),
+  );
+
+  static FlutterSecureStorage get instance => _instance;
+}
+
 class AuthRepositoryImpl implements AuthRepository {
   final ApiClient _apiClient;
   final FlutterSecureStorage _secureStorage;
 
   AuthRepositoryImpl({
     required ApiClient apiClient,
-    required FlutterSecureStorage secureStorage,
+    FlutterSecureStorage? secureStorage,
   })  : _apiClient = apiClient,
-        _secureStorage = secureStorage;
+        _secureStorage = secureStorage ?? _SecureStorageConfig.instance;
 
   @override
   Future<void> login({
@@ -57,9 +72,9 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       await _apiClient.register(
         username: username,
-        phoneNumber: phoneNumber,
+        phone_number: phoneNumber,
         password: password,
-        dateOfBirth: dateOfBirth,
+        date_of_birth: dateOfBirth.toIso8601String().split('T').first,
       );
     } catch (e) {
       throw Exception('Registration failed: ${e.toString()}');
@@ -96,8 +111,29 @@ class AuthRepositoryImpl implements AuthRepository {
       throw Exception('No refresh token available');
     }
 
-    // Implement token refresh endpoint call
-    // For now, just logout
-    await logout();
+    try {
+      // Call refresh endpoint
+      final response = await _apiClient.post('/refresh-token/', data: {
+        'refresh': refreshToken,
+      });
+
+      // Store new access token
+      await _secureStorage.write(
+        key: AppConstants.tokenStorageKey,
+        value: response['access'],
+      );
+
+      // Store new refresh token if rotated
+      if (response['refresh'] != null) {
+        await _secureStorage.write(
+          key: AppConstants.refreshTokenKey,
+          value: response['refresh'],
+        );
+      }
+    } catch (e) {
+      // Refresh failed - logout
+      await logout();
+      rethrow;
+    }
   }
 }

@@ -35,11 +35,20 @@ db.sqlite3
 /staticfiles
 /static
 
-# Environment
+# Environment - Secrets
 .env
 .env.local
 .env.*.local
 *.env
+.env.backup
+.env.bak
+.envrc
+
+# Docker secrets files
+docker-compose.override.yml
+docker-compose.local.yml
+*-override.yml
+secrets/
 
 # IDE
 .vscode/
@@ -67,9 +76,34 @@ firebase-app.json
 # Secrets & Keys
 *.pem
 *.key
+*.p12
+*.pfx
 secrets/
 credentials.json
 serviceAccount.json
+*.jks
+*.keystore
+*.secret
+*_secret
+*secret*
+api_keys.json
+aws_credentials
+.azure/
+.gcp/
+
+# Database dumps (may contain sensitive data)
+*.sql
+*.dump
+*.bak
+*.db
+
+# SSH
+*.pub
+*.ppk
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
 
 # Logs
 logs/

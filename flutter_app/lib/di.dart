@@ -19,8 +19,7 @@ final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
 
 // API Client
 final apiClientProvider = Provider<ApiClient>((ref) {
-  final secureStorage = ref.watch(secureStorageProvider);
-  return ApiClient(secureStorage: secureStorage);
+  return ApiClient();
 });
 
 // Auth Repository

@@ -1,17 +1,23 @@
 """
-PaddleOCR wrapper service for Yobhou project - **BANKING LEVEL PRECISION (99%)**
+PaddleOCR wrapper service for Yobhou project - Banking Level Security
 
 This module provides a simple interface to perform OCR on meter readings and invoices.
-Uses PaddleOCR (Python binding) with **enhanced preprocessing** and **multi-model validation**
-to achieve **99%+ accuracy** for fintech-grade requirements.
+Uses PaddleOCR (Python binding) with enhanced preprocessing and thread-safe instances.
+
+Thread-Safety: Uses thread-local storage to avoid sharing OCR instances across threads.
+Security: Validates extracted data against fintech-grade requirements.
 """
 
 import os
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 from pathlib import Path
 import cv2
 import numpy as np
 import re
+
+# Thread-local storage for OCR instances
+_local = threading.local()
 
 
 class PaddleOCRService:
@@ -231,5 +237,20 @@ class PaddleOCRService:
         return avg_confidence >= confidence_threshold
 
 
+<<<<<<< HEAD
 # Global instance for reuse
 ocr_service = PaddleOCRService()
+=======
+def get_ocr_service() -> PaddleOCRService:
+    """
+    Get thread-local OCR instance.
+    Thread-safe: each thread gets its own instance to avoid conflicts.
+    """
+    if not hasattr(_local, 'ocr'):
+        _local.ocr = PaddleOCRService()
+    return _local.ocr
+
+
+# Backwards compatibility - deprecated, use get_ocr_service() instead
+ocr_service = get_ocr_service()
+>>>>>>> 78baa35 (Audit de sécurité complet + corrections critiques)

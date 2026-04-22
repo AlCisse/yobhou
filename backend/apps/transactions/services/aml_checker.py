@@ -36,7 +36,7 @@ class AMLChecker:
     Runs on every transaction to flag suspicious patterns.
     """
     
-    def __init__(self, transaction: Transaction):
+    def __init__(self, transaction):
         self.transaction = transaction
         self.user = transaction.user
         self.alerts = []
@@ -177,7 +177,7 @@ class AMLChecker:
                 })
 
 
-def check_transaction_aml(transaction: Transaction) -> List[Dict]:
+def check_transaction_aml(transaction) -> List[Dict]:
     """
     Main entry point: Check a transaction for AML compliance.
     Returns list of alerts (empty if clean).

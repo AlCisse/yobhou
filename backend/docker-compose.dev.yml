@@ -20,12 +20,13 @@ services:
       - DJANGO_SETTINGS_MODULE=core.settings
       - DJANGO_DEBUG=True
       - POSTGRES_USER=yobhou_user
-      - POSTGRES_PASSWORD=yobhou_password
       - POSTGRES_DB=yobhou_db
       - POSTGRES_HOST=db
       - POSTGRES_PORT=5432
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy

@@ -13,8 +13,9 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from ocr_service.paddle_ocr_wrapper import ocr_service
+from ocr_service.paddle_ocr_wrapper import get_ocr_service
 import os
+import re
 import uuid
 import json
 import hashlib
@@ -26,17 +27,35 @@ from apps.users.models import User
 def validate_file_type(file, allowed_mime_types, allowed_extensions):
     """
     Validate file by both MIME type and extension for security.
+    Security: Check magic bytes to prevent MIME spoofing attacks.
     """
     # Check extension
     file_ext = os.path.splitext(file.name)[1].lower()
     if file_ext not in allowed_extensions:
         return False, f'Invalid file extension. Allowed: {", ".join(allowed_extensions)}'
-    
+
     # Check MIME type (if available)
     if hasattr(file, 'content_type') and file.content_type:
         if file.content_type not in allowed_mime_types:
             return False, f'Invalid MIME type: {file.content_type}'
-    
+
+    # Validate magic bytes (prevent MIME spoofing)
+    file.seek(0)
+    header = file.read(8)
+    file.seek(0)
+
+    # PNG magic bytes: 89 50 4E 47
+    if file_ext in ['.png'] and not header.startswith(b'\x89PNG'):
+        return False, 'Invalid PNG file (magic bytes mismatch)'
+
+    # JPEG magic bytes: FF D8 FF
+    if file_ext in ['.jpg', '.jpeg'] and not header.startswith(b'\xff\xd8\xff'):
+        return False, 'Invalid JPEG file (magic bytes mismatch)'
+
+    # PDF magic bytes: %PDF
+    if file_ext == '.pdf' and not header.startswith(b'%PDF'):
+        return False, 'Invalid PDF file (magic bytes mismatch)'
+
     return True, None
 
 
@@ -52,6 +71,8 @@ def complete_registration(request):
     - nom_titulaire, quartier, numero_compteur, conso_actuelle, etc. (from OCR)
 
     Returns JWT tokens + user data
+
+    Security: Rate limited by middleware (5 attempts/hour)
     """
     data = request.data
 
@@ -61,9 +82,18 @@ def complete_registration(request):
         if field not in data:
             return Response({'error': f'Champ requis: {field}'}, status=400)
 
+    # Strict phone number validation (prevent SQL injection & enumeration)
+    phone_number = data['phone_number']
+    if not re.match(r'^\+224\d{9}$', phone_number):
+        return Response({'error': 'Numéro de téléphone invalide'}, status=400)
+
     try:
-        # Find user by phone (created in step 1)
-        user = User.objects.get(phone_number=data['phone_number'])
+        # Find user by phone (created in step 1) - use filter to avoid timing attacks
+        users = User.objects.filter(phone_number=phone_number)
+        if not users.exists():
+            # Generic error to prevent enumeration
+            return Response({'error': 'Données invalides'}, status=400)
+        user = users.first()
 
         # Update user with EDG invoice data
         user.location_quartier = data.get('quartier', '')
@@ -161,7 +191,7 @@ def upload_invoice(request):
                 'validation_required': True
             })
         
-        result = ocr_service.extract_text(full_path)
+        result = get_ocr_service().extract_text(full_path)
         
         if not result['success']:
             return Response({
@@ -170,7 +200,7 @@ def upload_invoice(request):
             }, status=400)
         
         # Validate OCR confidence
-        if not ocr_service.validate_ocr_result(result):
+        if not get_ocr_service().validate_ocr_result(result):
             return Response({
                 'message': 'OCR confidence too low. Please retake photo.',
                 'ocr_data': {
@@ -243,7 +273,7 @@ def capture_meter(request):
     
     try:
         # Process with OCR
-        result = ocr_service.extract_text(full_path)
+        result = get_ocr_service().extract_text(full_path)
         
         if not result['success']:
             return Response({
@@ -252,7 +282,7 @@ def capture_meter(request):
             }, status=400)
         
         # Validate OCR confidence
-        if not ocr_service.validate_ocr_result(result):
+        if not get_ocr_service().validate_ocr_result(result):
             return Response({
                 'message': 'OCR confidence too low. Please retake photo.',
                 'ocr_data': {

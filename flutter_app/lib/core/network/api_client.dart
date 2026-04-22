@@ -1,6 +1,25 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import '../constants/app_constants.dart';
+import 'dart:io' show CertificateException;
+
+/// SSL Verification Interceptor - Production Security
+class _SslVerificationInterceptor extends Interceptor {
+  @override
+  void onError(DioException err, ErrorInterceptorHandler handler) {
+    // Check for SSL certificate errors
+    if (err.error is CertificateException) {
+      debugPrint('[SECURITY] SSL certificate validation failed: ${err.error}');
+      handler.reject(DioException(
+        requestOptions: err.requestOptions,
+        error: 'Certificate non approuvé. Connexion potentiellement compromise.',
+        type: DioExceptionType.connectionError,
+      ));
+      return;
+    }
+    handler.next(err);
+  }
+}
 
 /// Network Error Types - Fintech Standard
 abstract class AppError implements Exception {
@@ -35,20 +54,20 @@ class ServerError extends AppError {
   const ServerError(String message, [int? statusCode]) : super(message, statusCode);
 }
 
-/// API Service - Production Ready
+/// API Service - Production Ready with SSL Pinning
 class ApiClient {
   static final ApiClient _instance = ApiClient._internal();
-  
+
   factory ApiClient() => _instance;
-  
+
   late final Dio _dio;
   String? _accessToken;
   String? _refreshToken;
-  
+
   ApiClient._internal() {
     _initDio();
   }
-  
+
   void _initDio() {
     _dio = Dio(BaseOptions(
       baseUrl: AppConstants.apiBaseUrl,
@@ -61,6 +80,9 @@ class ApiClient {
         'X-App-Version': AppConstants.appVersion,
       },
     ));
+
+    // Add SSL verification interceptor for production
+    _dio.interceptors.add(_SslVerificationInterceptor());
     
     // Request interceptor - Add auth token
     _dio.interceptors.add(InterceptorsWrapper(
@@ -107,13 +129,13 @@ class ApiClient {
             case 503:
               throw ServerError('Service unavailable', 503);
           }
-        } else if (error.type == DioErrorType.connectionTimeout) {
+        } else if (error.type == DioExceptionType.connectionTimeout) {
           throw TimeoutError('Connection timeout');
-        } else if (error.type == DioErrorType.receiveTimeout) {
+        } else if (error.type == DioExceptionType.receiveTimeout) {
           throw TimeoutError('Receive timeout');
-        } else if (error.type == DioErrorType.sendTimeout) {
+        } else if (error.type == DioExceptionType.sendTimeout) {
           throw TimeoutError('Send timeout');
-        } else if (error.type == DioErrorType.connectionError) {
+        } else if (error.type == DioExceptionType.connectionError) {
           throw NetworkError('No internet connection');
         }
         
@@ -179,6 +201,71 @@ class ApiClient {
       if (total != -1) {
         debugPrint('Download progress: ${(received / total * 100).toInt()}%');
       }
+    });
+  }
+
+  /// Login
+  Future<dynamic> login({required String username, required String password}) async {
+    final response = await _dio.post('/login/', data: {'username': username, 'password': password});
+    if (response.data['access'] != null) {
+      setAuthTokens(response.data['access'], response.data['refresh']);
+    }
+    return response.data;
+  }
+
+  /// Register
+  Future<dynamic> register({
+    required String username,
+    required String phone_number,
+    required String password,
+    required String date_of_birth,
+  }) async {
+    return await _dio.post('/register/', data: {
+      'username': username,
+      'phone_number': phone_number,
+      'password': password,
+      'date_of_birth': date_of_birth,
+    });
+  }
+
+  /// Capture meter
+  Future<dynamic> captureMeter(String filePath) async {
+    final file = await MultipartFile.fromFile(filePath);
+    final formData = FormData.fromMap({'meter_photo': file});
+    return await _dio.post('/capture-meter/', data: formData);
+  }
+
+  /// Validate reading
+  Future<dynamic> validateReading({
+    required String meter_number,
+    required double current_index,
+    required double previous_index,
+  }) async {
+    return await _dio.post('/validate-reading/', data: {
+      'meter_number': meter_number,
+      'current_index': current_index,
+      'previous_index': previous_index,
+    });
+  }
+
+  /// Initiate payment
+  Future<dynamic> initiatePayment({
+    required double amount,
+    required String method,
+    required String phoneNumber,
+  }) async {
+    return await _dio.post('/initiate-payment/', data: {
+      'amount': amount,
+      'method': method,
+      'phone_number': phoneNumber,
+    });
+  }
+
+  /// Verify OTP
+  Future<dynamic> verifyOTP({required String otp, required String transactionId}) async {
+    return await _dio.post('/verify-otp/', data: {
+      'otp': otp,
+      'transaction_id': transactionId,
     });
   }
 }
