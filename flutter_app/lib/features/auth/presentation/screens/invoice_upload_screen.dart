@@ -52,9 +52,9 @@ class _InvoiceUploadScreenState extends State<InvoiceUploadScreen> {
   Future<void> _pickInvoice(ImageSource source) async {
     final pickedFile = await _picker.pickImage(
       source: source,
-      maxWidth: 2048,
-      maxHeight: 2048,
-      imageQuality: 85,
+      maxWidth: 640,  // Réduit pour vitesse OCR (matche backend 320-640px)
+      maxHeight: 640,
+      imageQuality: 75,  // Compression accrue pour vitesse
     );
 
     if (pickedFile != null) {
