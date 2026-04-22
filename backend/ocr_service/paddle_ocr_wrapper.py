@@ -47,17 +47,47 @@ class PaddleOCRService:
     def preprocess_image(self, image_path: str) -> np.ndarray:
         """
         Fast preprocessing for OCR - optimized for speed.
+        Handles different image rotations automatically.
         """
         # Load image
         image = cv2.imread(image_path)
 
-        # 1. Convert to grayscale
+        # 1. Auto-rotate based on EXIF orientation
+        image = self._auto_rotate(image)
+
+        # 2. Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # 2. Simple contrast enhancement
+        # 3. Simple contrast enhancement
         enhanced = self._enhance_contrast(gray)
 
         return enhanced
+
+    def _auto_rotate(self, image: np.ndarray) -> np.ndarray:
+        """Auto-rotate image based on EXIF data or detect orientation"""
+        from PIL import Image as PILImage, ExifTags
+
+        # Try EXIF orientation first
+        try:
+            pil_img = PILImage.open(image.tobytes())
+            for orientation in ExifTags.TAGS.keys():
+                if ExifTags.TAGS[orientation] == 'Orientation':
+                    break
+
+            exif = pil_img._getexif()
+            if exif is not None:
+                orientation_value = exif.get(orientation, None)
+
+                if orientation_value == 3:  # 180 degrees
+                    image = cv2.rotate(image, cv2.ROTATE_180)
+                elif orientation_value == 6:  # 90 degrees clockwise
+                    image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif orientation_value == 8:  # 270 degrees clockwise
+                    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+        except Exception:
+            pass  # Skip EXIF rotation if not available
+
+        return image
 
     def _deskew_image(self, image: np.ndarray) -> np.ndarray:
         """Correct skew in image (banking level preprocessing)."""
