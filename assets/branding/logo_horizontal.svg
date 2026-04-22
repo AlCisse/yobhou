@@ -1,0 +1,12 @@
+<svg width="2000" height="512" viewBox="0 0 2000 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Icône Y (répétition app_icon) -->
+  <g transform="translate(0, 64)">
+    <circle cx="256" cy="192" r="192" fill="#2563EB"/>
+    <path d="M160 80 L256 256 L352 80 L384 80 L256 320 L128 80 Z" fill="white"/>
+  </g>
+  
+  <!-- Texte Yobhou -->
+  <text x="512" y="320" font-family="Roboto, Arial, sans-serif" font-size="192" fill="#0F172A">
+    Yobhou
+  </text>
+</svg>

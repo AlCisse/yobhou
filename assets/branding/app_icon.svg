@@ -1,0 +1,10 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Cercle principal (#2563EB) -->
+  <circle cx="512" cy="512" r="480" fill="#2563EB"/>
+  
+  <!-- Lettre Y stylisée en blanc -->
+  <path d="M350 250 L512 512 L674 250 L720 250 L512 600 L304 250 Z" fill="white"/>
+  
+  <!-- Éclair en arrière-plan (#FBBF24) -->
+  <path d="M400 400 L500 400 L450 500 L550 500 L420 650 L400 550 L300 550 Z" fill="#FBBF24" opacity="0.3"/>
+</svg>
