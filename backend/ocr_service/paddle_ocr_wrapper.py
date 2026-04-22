@@ -119,7 +119,6 @@ class PaddleOCRService:
 
     def extract_meter_number(self, text_lines: List[str]) -> Optional[str]:
         """Extract meter number from OCR results (typically 6-10 digits)."""
-        # Banking level validation: strict pattern matching
         for line in text_lines:
             # Look for patterns like "12345678" or "123456-78"
             match = re.search(r'\b\d{6,10}\b', line)
@@ -128,19 +127,22 @@ class PaddleOCRService:
         return None
 
     def extract_index(self, text_lines: List[str]) -> Optional[float]:
-        """Extract meter index (kWh) from OCR results."""
+        """Extract meter index (kWh) from OCR results - looks for larger numbers typical of meter readings."""
+        candidates = []
         for line in text_lines:
-            # Look for decimal numbers like "12345.67" or "12345"
-            matches = re.findall(r'\b\d+\.\d+\b|\b\d+\b', line)
+            # Look for decimal numbers like "12345.67" or larger integers
+            matches = re.findall(r'\b\d{4,}\.\d+\b|\b\d{5,}\b', line)
             for match in matches:
                 try:
                     value = float(match)
-                    # Meter index is typically between 0 and 99999999
-                    if 0 <= value <= 99999999:
-                        return value
+                    # Meter index is typically between 1000 and 99999999
+                    if 1000 <= value <= 99999999:
+                        candidates.append(value)
                 except ValueError:
                     continue
-        return None
+
+        # Return the largest valid candidate (most likely the current index)
+        return max(candidates) if candidates else None
 
     def extract_text(self, image_path: str) -> Dict[str, Any]:
         """
