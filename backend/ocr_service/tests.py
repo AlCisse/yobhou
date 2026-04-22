@@ -1,6 +1,6 @@
 """
 Yobhou Fintech - OCR Service Unit Tests
-Tests for PaddleOCR wrapper functionality
+Tests for PaddleOCR wrapper functionality with **BANKING LEVEL (99% precision)**
 """
 
 import pytest
@@ -11,7 +11,7 @@ from decimal import Decimal
 
 
 class TestPaddleOCRService:
-    """Tests for PaddleOCR wrapper"""
+    """Tests for PaddleOCR wrapper - Banking Level (99%)"""
     
     @pytest.fixture
     def ocr_service(self):
@@ -82,10 +82,10 @@ class TestPaddleOCRService:
         assert index is None
     
     def test_validate_ocr_result_success(self, ocr_service):
-        """Test OCR result validation with good confidence"""
+        """Test OCR result validation with good confidence (99% banking level)"""
         result = {
             'success': True,
-            'confidence_scores': [0.95, 0.92, 0.88],
+            'avg_confidence': 0.99,  # Banking level threshold
             'meter_number': '12345678',
             'index': 450.0
         }
@@ -98,7 +98,7 @@ class TestPaddleOCRService:
         """Test OCR result validation with low confidence"""
         result = {
             'success': True,
-            'confidence_scores': [0.65, 0.70, 0.60],  # Below 0.8 threshold
+            'avg_confidence': 0.85,  # Below 99% banking threshold
             'meter_number': '12345678',
             'index': 450.0
         }
@@ -111,7 +111,7 @@ class TestPaddleOCRService:
         """Test OCR result validation when success is False"""
         result = {
             'success': False,
-            'confidence_scores': [],
+            'avg_confidence': 0.0,
             'error': 'OCR failed'
         }
         
@@ -123,12 +123,30 @@ class TestPaddleOCRService:
         """Test OCR result validation with empty confidence scores"""
         result = {
             'success': True,
-            'confidence_scores': [],
+            'avg_confidence': 0.0,
             'meter_number': '12345678'
         }
         
         is_valid = ocr_service.validate_ocr_result(result)
         
+        assert is_valid is False
+    
+    def test_banking_level_confidence_threshold(self, ocr_service):
+        """Test that banking level requires 99% confidence"""
+        # Test with 99% threshold
+        result = {
+            'success': True,
+            'avg_confidence': 0.99,  # Exactly at threshold
+            'meter_number': '12345678',
+            'index': 450.0
+        }
+        
+        is_valid = ocr_service.validate_ocr_result(result)
+        assert is_valid is True
+        
+        # Test with 98.9% (below threshold)
+        result['avg_confidence'] = 0.989
+        is_valid = ocr_service.validate_ocr_result(result)
         assert is_valid is False
     
     @patch('ocr_service.paddle_ocr_wrapper.cv2')
@@ -185,3 +203,48 @@ class TestOCRErrorHandling:
         
         with pytest.raises(Exception):
             ocr_service.preprocess_image('/nonexistent/path/image.jpg')
+
+
+class TestBankingLevelOCR:
+    """Banking level precision tests (99% confidence threshold)"""
+    
+    def test_extract_meter_number_bank_level(self, ocr_service):
+        """Test meter number extraction with banking precision"""
+        text_lines = [
+            'FACTURE EAU ELECTRICITE',
+            'Compteur: 9876543210',  # 10 digits - max valid length
+        ]
+        
+        meter_number = ocr_service.extract_meter_number(text_lines)
+        
+        assert meter_number == '9876543210'
+        assert len(meter_number) == 10  # Max valid length
+    
+    def test_extract_index_bank_level_precision(self, ocr_service):
+        """Test index extraction with banking precision"""
+        text_lines = [
+            'Compteur: 12345678',
+            'Index actuel: 123456789.00',  # Valid format
+        ]
+        
+        index = ocr_service.extract_index(text_lines)
+        
+        assert index == 123456789.0
+        assert isinstance(index, float)
+    
+    def test_validate_ocr_result_bank_level(self, ocr_service):
+        """Test banking level validation requires 99% confidence"""
+        result = {
+            'success': True,
+            'avg_confidence': 0.99,  # Banking level threshold
+            'meter_number': '12345678',
+            'index': 450.0
+        }
+        
+        is_valid = ocr_service.validate_ocr_result(result)
+        assert is_valid is True
+        
+        # Test below threshold
+        result['avg_confidence'] = 0.989
+        is_valid = ocr_service.validate_ocr_result(result)
+        assert is_valid is False
