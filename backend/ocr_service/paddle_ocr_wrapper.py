@@ -26,14 +26,19 @@ class PaddleOCRService:
     def __init__(self):
         # Lazy import to avoid errors when paddleocr is not installed
         from paddleocr import PaddleOCR
-        # Initialize PaddleOCR with English (faster, works for numbers)
+        # Initialize PaddleOCR with CRNN model for maximum speed
         self.ocr = PaddleOCR(
             lang='en',
-            use_angle_cls=False,  # Skip angle classification for speed
+            use_angle_cls=False,  # Skip angle classification
+            rec_algorithm='CRNN',  # Faster than SVTR_LCNet
             det_db_score_mode='fast',
-            det_db_thresh=0.3,
-            det_db_box_thresh=0.3,
-            rec_batch_num=64,  # Process in batches
+            det_db_thresh=0.15,  # Lower = faster detection
+            det_db_box_thresh=0.15,
+            det_limit_side_len=320,  # Much smaller = much faster
+            rec_batch_num=256,
+            rec_image_shape='3, 32, 64',  # Smaller = faster
+            cpu_threads=4,
+            drop_score=0.7,  # Higher = filter more, faster
         )
 
         # Optimized thresholds for speed
