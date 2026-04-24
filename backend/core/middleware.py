@@ -18,10 +18,10 @@ class RateLimitMiddleware(MiddlewareMixin):
     """
 
     RATE_LIMITS = {
-        '/api/complete-registration/': {'requests': 5, 'window': 3600},  # 5/hour
+        '/api/complete-registration/': {'requests': 10, 'window': 3600},  # 10/hour
         '/api/login/': {'requests': 10, 'window': 3600},  # 10/hour
-        '/api/verify-otp/': {'requests': 3, 'window': 3600},  # 3/hour
-        '/api/register/': {'requests': 3, 'window': 3600},  # 3/hour
+        '/api/verify-otp/': {'requests': 5, 'window': 3600},  # 5/hour
+        '/api/register/': {'requests': 10, 'window': 3600},  # 10/hour (increased for dev)
     }
 
     def process_request(self, request):

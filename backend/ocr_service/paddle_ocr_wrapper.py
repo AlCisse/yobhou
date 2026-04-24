@@ -26,14 +26,19 @@ class PaddleOCRService:
     def __init__(self):
         # Lazy import to avoid errors when paddleocr is not installed
         from paddleocr import PaddleOCR
-        # Initialize PaddleOCR with English (faster, works for numbers)
+        # Initialize PaddleOCR with CRNN model for maximum speed
         self.ocr = PaddleOCR(
             lang='en',
-            use_angle_cls=False,  # Skip angle classification for speed
+            use_angle_cls=False,  # Skip angle classification
+            rec_algorithm='CRNN',  # Faster than SVTR_LCNet
             det_db_score_mode='fast',
-            det_db_thresh=0.3,
-            det_db_box_thresh=0.3,
-            rec_batch_num=64,  # Process in batches
+            det_db_thresh=0.15,  # Lower = faster detection
+            det_db_box_thresh=0.15,
+            det_limit_side_len=320,  # Much smaller = much faster
+            rec_batch_num=256,
+            rec_image_shape='3, 32, 64',  # Smaller = faster
+            cpu_threads=4,
+            drop_score=0.7,  # Higher = filter more, faster
         )
 
         # Optimized thresholds for speed
@@ -47,17 +52,47 @@ class PaddleOCRService:
     def preprocess_image(self, image_path: str) -> np.ndarray:
         """
         Fast preprocessing for OCR - optimized for speed.
+        Handles different image rotations automatically.
         """
         # Load image
         image = cv2.imread(image_path)
 
-        # 1. Convert to grayscale
+        # 1. Auto-rotate based on EXIF orientation
+        image = self._auto_rotate(image)
+
+        # 2. Convert to grayscale
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # 2. Simple contrast enhancement
+        # 3. Simple contrast enhancement
         enhanced = self._enhance_contrast(gray)
 
         return enhanced
+
+    def _auto_rotate(self, image: np.ndarray) -> np.ndarray:
+        """Auto-rotate image based on EXIF data or detect orientation"""
+        from PIL import Image as PILImage, ExifTags
+
+        # Try EXIF orientation first
+        try:
+            pil_img = PILImage.open(image.tobytes())
+            for orientation in ExifTags.TAGS.keys():
+                if ExifTags.TAGS[orientation] == 'Orientation':
+                    break
+
+            exif = pil_img._getexif()
+            if exif is not None:
+                orientation_value = exif.get(orientation, None)
+
+                if orientation_value == 3:  # 180 degrees
+                    image = cv2.rotate(image, cv2.ROTATE_180)
+                elif orientation_value == 6:  # 90 degrees clockwise
+                    image = cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                elif orientation_value == 8:  # 270 degrees clockwise
+                    image = cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)
+        except Exception:
+            pass  # Skip EXIF rotation if not available
+
+        return image
 
     def _deskew_image(self, image: np.ndarray) -> np.ndarray:
         """Correct skew in image (banking level preprocessing)."""
@@ -84,7 +119,6 @@ class PaddleOCRService:
 
     def extract_meter_number(self, text_lines: List[str]) -> Optional[str]:
         """Extract meter number from OCR results (typically 6-10 digits)."""
-        # Banking level validation: strict pattern matching
         for line in text_lines:
             # Look for patterns like "12345678" or "123456-78"
             match = re.search(r'\b\d{6,10}\b', line)
@@ -93,19 +127,22 @@ class PaddleOCRService:
         return None
 
     def extract_index(self, text_lines: List[str]) -> Optional[float]:
-        """Extract meter index (kWh) from OCR results."""
+        """Extract meter index (kWh) from OCR results - looks for larger numbers typical of meter readings."""
+        candidates = []
         for line in text_lines:
-            # Look for decimal numbers like "12345.67" or "12345"
-            matches = re.findall(r'\b\d+\.\d+\b|\b\d+\b', line)
+            # Look for decimal numbers like "12345.67" or larger integers
+            matches = re.findall(r'\b\d{4,}\.\d+\b|\b\d{5,}\b', line)
             for match in matches:
                 try:
                     value = float(match)
-                    # Meter index is typically between 0 and 99999999
-                    if 0 <= value <= 99999999:
-                        return value
+                    # Meter index is typically between 1000 and 99999999
+                    if 1000 <= value <= 99999999:
+                        candidates.append(value)
                 except ValueError:
                     continue
-        return None
+
+        # Return the largest valid candidate (most likely the current index)
+        return max(candidates) if candidates else None
 
     def extract_text(self, image_path: str) -> Dict[str, Any]:
         """

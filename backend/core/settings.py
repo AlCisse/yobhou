@@ -33,7 +33,7 @@ SECRET_KEY = SECRET_KEY or 'dev-key-change-me-in-prod'
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DJANGO_DEBUG', 'False').lower() == 'true'
 
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1,192.168.2.172').split(',')
 
 # Security headers (HSTS, CSP, etc.)
 if not DEBUG:
@@ -267,4 +267,12 @@ LOGGING = {
         'handlers': ['console', 'audit_file'],
         'level': 'INFO',
     },
+}
+
+# Cache configuration (Redis for rate limiting)
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f'redis://{os.getenv("REDIS_HOST", "redis")}:{os.getenv("REDIS_PORT", "6379")}/1',
+    }
 }
