@@ -7,6 +7,9 @@ import 'features/auth/presentation/auth_exports.dart';
 import 'features/onboarding/presentation/screens/onboarding_screen.dart';
 import 'features/meter/presentation/screens/capture_meter_screen.dart';
 import 'features/payment/presentation/screens/payment_screen.dart';
+import 'features/payment/presentation/screens/receipt_screen.dart';
+import 'features/payment/presentation/screens/payment_history_screen.dart';
+import 'features/profile/presentation/screens/profile_screen.dart';
 import 'features/dashboard/presentation/screens/dashboard_screen.dart';
 
 void main() {
@@ -90,6 +93,34 @@ final GoRouter _router = GoRouter(
         final amount = state.uri.queryParameters['amount'];
         return PaymentScreen(amount: amount != null ? double.tryParse(amount) ?? 0 : 0);
       },
+    ),
+    // Payment History
+    GoRoute(
+      path: '/payment-history',
+      name: 'payment-history',
+      builder: (context, state) => const PaymentHistoryScreen(),
+    ),
+    // Receipt
+    GoRoute(
+      path: '/receipt',
+      name: 'receipt',
+      builder: (context, state) {
+        final data = state.extra as Map<String, dynamic>? ?? {};
+        return ReceiptScreen(
+          transactionReference: data['transaction_reference'] ?? '',
+          amount: (data['amount'] ?? 0).toDouble(),
+          paymentMethod: data['payment_method'] ?? '',
+          meterNumber: data['meter_number'] ?? '',
+          date: DateTime.tryParse(data['date'] ?? '') ?? DateTime.now(),
+          status: data['status'] ?? 'PENDING',
+        );
+      },
+    ),
+    // Profile
+    GoRoute(
+      path: '/profile',
+      name: 'profile',
+      builder: (context, state) => const ProfileScreen(),
     ),
   ],
 );
