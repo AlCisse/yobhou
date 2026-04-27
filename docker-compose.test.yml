@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  db-test:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: yobhou_test
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: yobhou_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yobhou_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  web-test:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      DJANGO_SETTINGS_MODULE: core.settings
+      DEBUG: "True"
+      DATABASE_URL: postgres://yobhou_test:test_password@db-test:5432/yobhou_test
+      REDIS_URL: redis://redis-test:6379/0
+      SECRET_KEY: test-secret-key-123456789
+    volumes:
+      - ./backend:/app
+      - test_media:/app/media
+    depends_on:
+      db-test:
+        condition: service_healthy
+      redis-test:
+        condition: service_healthy
+    command: >
+      sh -c "python manage.py migrate --run-syncdb &&
+             python manage.py test apps.payments.tests_integration -v 2 &&
+             python manage.py test apps.payments.tests -v 2"
+
+volumes:
+  test_postgres_data:
+  test_media:
